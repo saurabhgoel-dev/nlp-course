@@ -1,12 +1,15 @@
-import nltk
-import spacy
 from pathlib import Path
+import os
+import glob
+import pandas as pd
+import chardet 
+import nltk
+import string
+from nltk import word_tokenize, sent_tokenize
+from nltk.corpus import cmudict
 
-
-nlp = spacy.load("en_core_web_sm")
-nlp.max_length = 2000000
-
-
+# nlp = spacy.load("en_core_web_sm")
+# nlp.max_length = 2000000
 
 def fk_level(text, d):
     """Returns the Flesch-Kincaid Grade Level of a text (higher grade is more difficult).
@@ -19,8 +22,30 @@ def fk_level(text, d):
     Returns:
         float: The Flesch-Kincaid Grade Level of the text. (higher grade is more difficult)
     """
-    pass
+    word_count = len([w for w in word_tokenize(text) if w not in string.punctuation])
+    sentence_count = len(sent_tokenize(text))
+    syllables_count = sum(count_syl(w, d) for w in word_tokenize(text) if w not in string.punctuation)
+    score = 206.835 - 1.015 * (word_count / sentence_count) - 84.6 * (syllables_count / word_count)
+    return score
 
+def syllables(word):
+    #referred from stackoverflow.com/questions/14541303/count-the-number-of-syllables-in-a-word
+    #This is to estimate the number of syllables in a word based on cluster of vowels
+    count = 0
+    vowels = 'aeiouy'
+    word = word.lower()
+    if word[0] in vowels:
+        count +=1
+    for index in range(1,len(word)):
+        if word[index] in vowels and word[index-1] not in vowels:
+            count +=1
+    if word.endswith('e'):
+        count -= 1
+    if word.endswith('le'):
+        count += 1
+    if count == 0:
+        count += 1
+    return count
 
 def count_syl(word, d):
     """Counts the number of syllables in a word given a dictionary of syllables per word.
@@ -33,14 +58,45 @@ def count_syl(word, d):
     Returns:
         int: The number of syllables in the word.
     """
-    pass
+    try:
+        return [len(list(y for y in x if y[-1].isdigit())) for x in d[word.lower()]][0]
+    except KeyError:
+        #if word not found in cmudict
+        return syllables(word)
 
+def detect_encoding(file_path): 
+    """Detect the encoding of the file to be read"""
+    with open(file_path, 'rb') as file: 
+        detector = chardet.universaldetector.UniversalDetector() 
+        for line in file: 
+            detector.feed(line) 
+            if detector.done: 
+                break
+        detector.close() 
+    return detector.result['encoding'] 
 
-def read_novels(path=Path.cwd() / "texts" / "novels"):
+def read_novels(path=Path.cwd() / "p1-texts" / "novels"):
     """Reads texts from a directory of .txt files and returns a DataFrame with the text, title,
     author, and year"""
-    pass
-
+    all_data = []
+    # this for loop will run through folders and subfolders looking for a specific file type
+    for root, dirs, files in os.walk(path, topdown=False):
+    # look through all the files in the given directory
+        for name in files:
+            filename = os.path.join(root, name)
+            # print(filename)
+            name_split = name.replace('_', ' ').replace('.txt','').split('-')
+            # print(name_split)
+            encoding = detect_encoding(filename)
+            with open(filename, 'r', encoding=encoding) as afile:
+                # print(filename)
+                text = afile.read() # read the file and then add it to the list
+                afile.close() # close the file when you're done
+            # print(text)
+            data = [text, name_split[0], name_split[1], name_split[2]]
+            all_data.append(data)
+    df = pd.DataFrame(all_data, columns=['Text', 'Title', 'Author', 'Year']).sort_values(by=['Year'], ignore_index=True)
+    return df
 
 def parse(df, store_path=Path.cwd() / "pickles", out_name="parsed.pickle"):
     """Parses the text of a DataFrame using spaCy, stores the parsed docs as a column and writes 
@@ -49,17 +105,20 @@ def parse(df, store_path=Path.cwd() / "pickles", out_name="parsed.pickle"):
 
 
 def nltk_ttr(text):
-    """Calculates the type-token ratio of a text. Text is tokenized using nltk.word_tokenize."""
-    pass
+    """Calculates the type-token ratio of a text. Text is tokenized using nltk.word_tokenize.
+    Additional condition of string punctuation will remove punctuations from the list"""
+    tokens = [w for w in word_tokenize(text) if w not in string.punctuation]
+    # tokens = nltk.word_tokenize(text)
+    ttr = len(set(tokens)) / len(tokens)
+    return ttr
 
 
 def get_ttrs(df):
     """helper function to add ttr to a dataframe"""
     results = {}
     for i, row in df.iterrows():
-        results[row["title"]] = nltk_ttr(row["text"])
+        results[row["Title"]] = nltk_ttr(row["Text"])
     return results
-
 
 def get_fks(df):
     """helper function to add fk scores to a dataframe"""
@@ -92,14 +151,17 @@ if __name__ == "__main__":
     """
     uncomment the following lines to run the functions once you have completed them
     """
-    #path = Path.cwd() / "p1-texts" / "novels"
-    #print(path)
-    #df = read_novels(path) # this line will fail until you have completed the read_novels function above.
-    #print(df.head())
-    #nltk.download("cmudict")
+    path = Path.cwd() / "p1-texts" / "novels"
+    print(path)
+    df = read_novels(path) # this line will fail until you have completed the read_novels function above.
+    print(df.head())
+    # nltk.download("cmudict")
     #parse(df)
     #print(df.head())
-    #print(get_ttrs(df))
+    nltk.download('punkt')
+    print(get_ttrs(df))
+    d = cmudict.dict()
+    print(fk_level(df['Text'][0], d))
     #print(get_fks(df))
     #df = pd.read_pickle(Path.cwd() / "pickles" /"name.pickle")
     # print(get_subjects(df))
