@@ -7,6 +7,7 @@ import nltk
 import string
 from nltk import word_tokenize, sent_tokenize
 from nltk.corpus import cmudict
+import spacy
 
 # nlp = spacy.load("en_core_web_sm")
 # nlp.max_length = 2000000
@@ -25,8 +26,9 @@ def fk_level(text, d):
     word_count = len([w for w in word_tokenize(text) if w not in string.punctuation])
     sentence_count = len(sent_tokenize(text))
     syllables_count = sum(count_syl(w, d) for w in word_tokenize(text) if w not in string.punctuation)
-    score = 206.835 - 1.015 * (word_count / sentence_count) - 84.6 * (syllables_count / word_count)
-    return score
+    # score = 206.835 - 1.015 * (word_count / sentence_count) - 84.6 * (syllables_count / word_count)
+    grade_level = 0.39*(word_count / sentence_count) + 11.8*(syllables_count / word_count)
+    return grade_level
 
 def syllables(word):
     #referred from stackoverflow.com/questions/14541303/count-the-number-of-syllables-in-a-word
@@ -101,6 +103,9 @@ def read_novels(path=Path.cwd() / "p1-texts" / "novels"):
 def parse(df, store_path=Path.cwd() / "pickles", out_name="parsed.pickle"):
     """Parses the text of a DataFrame using spaCy, stores the parsed docs as a column and writes 
     the resulting  DataFrame to a pickle file"""
+    nlp = spacy.load("en_core_web_sm")
+    nlp.max_length = 1160000 
+    df['Text_Parsed'] = df['Text'].apply(nlp)
     pass
 
 
@@ -120,12 +125,12 @@ def get_ttrs(df):
         results[row["Title"]] = nltk_ttr(row["Text"])
     return results
 
-def get_fks(df):
+def get_fks(df, d):
     """helper function to add fk scores to a dataframe"""
     results = {}
-    cmudict = nltk.corpus.cmudict.dict()
+    # cmudict = nltk.corpus.cmudict.dict()
     for i, row in df.iterrows():
-        results[row["title"]] = round(fk_level(row["text"], cmudict), 4)
+        results[row["Title"]] = round(fk_level(row["Text"], d), 4)
     return results
 
 
@@ -156,13 +161,13 @@ if __name__ == "__main__":
     df = read_novels(path) # this line will fail until you have completed the read_novels function above.
     print(df.head())
     # nltk.download("cmudict")
-    #parse(df)
-    #print(df.head())
+    parse(df)
+    print(df.head())
     nltk.download('punkt')
     print(get_ttrs(df))
     d = cmudict.dict()
-    print(fk_level(df['Text'][0], d))
-    #print(get_fks(df))
+    # print(fk_level(df['Text'][0], d))
+    print(get_fks(df, d))
     #df = pd.read_pickle(Path.cwd() / "pickles" /"name.pickle")
     # print(get_subjects(df))
     """ 
