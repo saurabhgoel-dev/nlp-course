@@ -8,6 +8,8 @@ import string
 from nltk import word_tokenize, sent_tokenize
 from nltk.corpus import cmudict
 import spacy
+from collections import Counter
+import numpy as np
 
 # nlp = spacy.load("en_core_web_sm")
 # nlp.max_length = 2000000
@@ -100,12 +102,13 @@ def read_novels(path=Path.cwd() / "p1-texts" / "novels"):
     df = pd.DataFrame(all_data, columns=['Text', 'Title', 'Author', 'Year']).sort_values(by=['Year'], ignore_index=True)
     return df
 
-def parse(df, store_path=Path.cwd() / "pickles", out_name="parsed.pickle"):
+def parse(df, store_path=Path.cwd() / "pickles", out_name="novels.pkl"):
     """Parses the text of a DataFrame using spaCy, stores the parsed docs as a column and writes 
     the resulting  DataFrame to a pickle file"""
     nlp = spacy.load("en_core_web_sm")
-    nlp.max_length = 1160000 
+    nlp.max_length = 2000000 
     df['Text_Parsed'] = df['Text'].apply(nlp)
+    df.to_pickle(os.path.join(store_path, out_name))
     pass
 
 
@@ -136,19 +139,50 @@ def get_fks(df, d):
 
 def subjects_by_verb_pmi(doc, target_verb):
     """Extracts the most common subjects of a given verb in a parsed document. Returns a list."""
-    pass
+    # In essense we need to estimate the co-occurence of subjects wrt the mentioned verb
+    # our revised PMI = co-occurence count(subject, verb)/count of subject
 
+    ### Calculate co-occurence of a subject with a targeted verb
+    cooccurence_counter = Counter()
+    for possible_verb in doc:
+        if possible_verb.pos_ == 'VERB' and possible_verb.lemma_ == target_verb:
+            for possible_subject in possible_verb.children:
+                if possible_subject.dep_ == "nsubj" and not possible_subject.is_stop:
+                    cooccurence_counter[possible_subject.text] += 1   
+    ### Calculate count of a subject
+    subject_count = Counter()
+    for possible_subject in doc:
+        if possible_subject.dep_ == "nsubj" and not possible_subject.is_stop:
+            subject_count[possible_subject.text] += 1
+    
+    ### calculate pmi of each subject
+    pmi_collection = dict()
+    for subj, cooccurence_count in cooccurence_counter.items():
+        pmi_collection[subj] = cooccurence_count/subject_count[subj]
+    
+    # pmi_collection_list = [(k, pmi_collection[k]) for k in sorted(pmi_collection, key=pmi_collection.get, reverse=True)]
 
+    return sorted(pmi_collection, key=pmi_collection.get, reverse=True)[0:5]
 
 def subjects_by_verb_count(doc, verb):
     """Extracts the most common subjects of a given verb in a parsed document. Returns a list."""
-    pass
+    subject_count = Counter()
+    for possible_verb in doc:
+        if possible_verb.pos_ == 'VERB' and possible_verb.lemma_ == verb:
+            for possible_subject in possible_verb.children:
+                if possible_subject.dep_ == "nsubj" and not possible_subject.is_stop:
+                    subject_count[possible_subject.text] += 1
+    return subject_count.most_common(5)
 
 
 
 def subject_counts(doc):
     """Extracts the most common subjects in a parsed document. Returns a list of tuples."""
-    pass
+    subject_count = Counter()
+    for possible_subject in doc:
+        if possible_subject.dep_ == "nsubj" and not possible_subject.is_stop:
+            subject_count[possible_subject.text] += 1
+    return subject_count.most_common(5)
 
 
 
@@ -156,29 +190,34 @@ if __name__ == "__main__":
     """
     uncomment the following lines to run the functions once you have completed them
     """
-    path = Path.cwd() / "p1-texts" / "novels"
-    print(path)
-    df = read_novels(path) # this line will fail until you have completed the read_novels function above.
+    # path = Path.cwd() / "p1-texts" / "novels"
+    # print(path)
+    df = pd.read_pickle(Path.cwd() / "pickles" /"novels.pkl"  )
+    # df = read_novels(path) # this line will fail until you have completed the read_novels function above.
     print(df.head())
     # nltk.download("cmudict")
-    parse(df)
-    print(df.head())
+    # parse(df)
+    # print(df.head())
     nltk.download('punkt')
     print(get_ttrs(df))
     d = cmudict.dict()
     # print(fk_level(df['Text'][0], d))
     print(get_fks(df, d))
-    #df = pd.read_pickle(Path.cwd() / "pickles" /"name.pickle")
+    # df = pd.read_pickle(Path.cwd() / "pickles" /"novels.pkl"  )
+    # print(df.head())
     # print(get_subjects(df))
-    """ 
+
+    # For loop to get most common subjects in the doc
     for i, row in df.iterrows():
-        print(row["title"])
-        print(subjects_by_verb_count(row["parsed"], "say"))
+        print(row["Title"])
+        print(subject_counts(row["Text_Parsed"]))
+        print("\n")
+    for i, row in df.iterrows():
+        print(row["Title"])
+        print(subjects_by_verb_count(row["Text_Parsed"], "say"))
         print("\n")
 
     for i, row in df.iterrows():
-        print(row["title"])
-        print(subjects_by_verb_pmi(row["parsed"], "say"))
+        print(row["Title"])
+        print(subjects_by_verb_pmi(row["Text_Parsed"], "say"))
         print("\n")
-    """
-
