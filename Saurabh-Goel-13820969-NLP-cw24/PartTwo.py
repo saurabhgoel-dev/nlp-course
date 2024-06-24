@@ -6,6 +6,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.metrics import f1_score, classification_report
+import spacy
+nlp = spacy.load("en_core_web_sm")
+nlp.max_length = 2000000
 
 data = pd.read_csv(Path.cwd() / "p2-texts"/"hansard40000.csv")
 print(data.head())
@@ -138,3 +141,28 @@ print(f"Classification Report for Linear Support Vector Classifier - Uni, Bi and
 #############################
 
 
+def custom_tokenizer(text):
+    doc = nlp(text)
+    tokens = [token.lemma_ for token in doc if token.is_alpha and not token.is_stop and not token.is_punct]
+    return tokens
+
+def custom_vectorizer(text_data, max_features = 4000):
+    tf = TfidfVectorizer(tokenizer=custom_tokenizer, max_features=max_features)
+    text_tf = tf.fit_transform(text_data)
+    return text_tf
+
+#### Custom Tokenizer - TfidfVectorizer
+speech_tf = custom_vectorizer(data['speech'], 4000)
+## Splitting the data and into test and train with test sample = 30%
+X_train, X_test, y_train, y_test = train_test_split(speech_tf, data['party'], test_size=0.3, random_state=99)
+## Calling Random Forest Calssifier
+y_pred_rf = rf_classier(400, X_train, y_train, X_test)
+f1_score_rf, classification_report_rf = classification_metrics(y_test, y_pred_rf, top_4_parties_list)
+print(f"F1-Score for Random Forest Classifier - Custom Tokenizer: {f1_score_rf}")
+print(f"Classification Report for Random Forest Classifier - Custom Tokenizer: {classification_report_rf}")
+## Calling Linear SV Classifier
+y_pred_svc = svclassifier('linear', X_train, y_train, X_test)
+f1_score_svc, classification_report_svc = classification_metrics(y_test, y_pred_svc, top_4_parties_list)
+print(f"F1-Score for SVM Classifier - Custom Tokenizer: {f1_score_svc}")
+print(f"Classification Report for Linear Support Vector Classifier - Custom Tokenizer: {classification_report_svc}")
+#############################

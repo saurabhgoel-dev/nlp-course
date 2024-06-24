@@ -1,1 +1,17 @@
 Answers to the text questions go here.
+________________________________________________________________________________________________________
+1d. Flesch-Kincaid score provides a rough estimate of text difficulty based on sentence length and word complexity. It fails to account for various other factors that contribute to readabilty and comprehension. Some of these factors are:
+
+ (a) Complex Vocobulary: Various technical and academic documents have technical terms, complex sentence structures which can have low readabilty scores even though they might be difficult to comprehend by laypeople
+ (b) Applicability to English Language only: This score is primarily designed for English and doesn't consider text in other languages
+________________________________________________________________________________________________________
+
+2f. Custom Tokenizer:
+I have created a custom tokenizer using the spacy library. The function takes the lemmatized value of the token. It also discards any token which is not alphabet or is a stop word or is a punctuation as per the spacy library.
+
+I have called this function in the TfidfVectorizer object with maximum of 4000 features.
+
+The Random Forest Classifier has the F1-Score of 0.446. Whereas Linear Support Vector Classifier has the F1-Score of 0.606. Clearly Linear SVC has performed better than Random Forest Classifier.
+
+However, I have also vectorised the text documents using the default tokenizer in the TfidfVectorizer method. I have tried Unigram, Bigram, Trigram and combination of all three of grams for tokenization. In all 5 approaches, Linear SVC on combination of Uni, Bi and Tri Grams tokenizer has performed best with 0.616 F1-Score. This result is marginally better than the custom tokenizer defined by me.
+________________________________________________________________________________________________________

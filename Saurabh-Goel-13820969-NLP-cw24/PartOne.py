@@ -29,7 +29,7 @@ def fk_level(text, d):
     sentence_count = len(sent_tokenize(text))
     syllables_count = sum(count_syl(w, d) for w in word_tokenize(text) if w not in string.punctuation)
     # score = 206.835 - 1.015 * (word_count / sentence_count) - 84.6 * (syllables_count / word_count)
-    grade_level = 0.39*(word_count / sentence_count) + 11.8*(syllables_count / word_count)
+    grade_level = 0.39*(word_count / sentence_count) + 11.8*(syllables_count / word_count) - 15.59
     return grade_level
 
 def syllables(word):
